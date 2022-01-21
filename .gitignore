@@ -15,6 +15,7 @@ data/
 # Azure stuff
 *.amlignore
 *.amltmp
+azureml-models/
 
 # Distribution / packaging
 .Python
@@ -86,6 +87,8 @@ target/
 
 # Jupyter Notebook
 .ipynb_checkpoints
+.ipynb_aml_checkpoints/
+
 
 # IPython
 profile_default/
