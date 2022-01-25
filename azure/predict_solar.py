@@ -5,8 +5,8 @@ Created on Mon Nov 22 19:51:32 2021
 @author: MEvans
 """
 
-from Satellite_ComputerVision import model_tools, processing
-from Satellite_ComputerVision.prediction_tools import makePredDataset, write_tfrecord_predictions
+from utils import model_tools, processing
+from utils.prediction_tools import makePredDataset, write_tfrecord_predictions
 from matplotlib import pyplot as plt
 import argparse
 import os
@@ -16,6 +16,7 @@ import math
 import tensorflow as tf
 from datetime import datetime
 from azureml.core import Run, Workspace, Model
+from azure.storage.blob import BlobClient
 
 
 # Set Global variables
@@ -25,7 +26,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--pred_data', type = str, default = True, help = 'directory containing test image(s) and mixer')
 parser.add_argument('--model_id', type = str, required = True, default = None, help = 'model id for continued training')
 parser.add_argument('--kernel_size', type = int, default = 256, dest = 'kernel_size', help = 'Size in pixels of incoming patches')
-parser.add_argument('--bands', type = str, nargs = '+', required = False, default = ['B2', 'B3', 'B4', 'B8', 'B11', 'B12'])
+parser.add_argument('--bands', type = str, nargs = '+', required = False, default = ["B2", "B3", "B4", "B8", "B11", "B12"])
+parser.add_argument('--blob_url', type = str, required = True, help = 'blob url for upload to blob storage')
 
 args = parser.parse_args()
 
@@ -35,14 +37,13 @@ exp = run.experiment
 ws = exp.workspace
 
 BANDS = args.bands
+# BANDS = json.loads(args.bands)
 OPTIMIZER = tf.keras.optimizers.Adam(learning_rate=0.01, beta_1=0.9, beta_2=0.999)
 
 METRICS = {
         'logits':[tf.keras.metrics.MeanSquaredError(name='mse'), tf.keras.metrics.Precision(name='precision'), tf.keras.metrics.Recall(name='recall')],
         'classes':[tf.keras.metrics.MeanIoU(num_classes=2, name = 'mean_iou')]
         }
-
-WEIGHTS = args.weights
 
 def get_weighted_bce(y_true, y_pred):
     return model_tools.weighted_bce(y_true, y_pred, 1)
@@ -84,14 +85,19 @@ predData = makePredDataset(predFiles, BANDS, one_hot = None)
 write_tfrecord_predictions(
     imageDataset = predData,
     model = m, 
-    pred_path = out_dir, 
-    out_image_base = jsonFile[:-10], 
-    kernel_shape = [256, 256],
+    pred_path = './', 
+    out_image_base = f'{jsonFile[:-10]}_{args.model_id}', 
+    kernel_shape = KERNEL_SHAPE,
     kernel_buffer = [128,128])
 
 # get the current time
 now = datetime.now() 
 date = now.strftime("%d%b%y")
 date
+
+blob_url = args.blob_url
+blob_client = BlobClient.from_blob_url(blob_url)
+with open(f'{jsonFile[:-10]}_{args.model_id}.TFRecord', 'rb') as f:
+    blob_client.upload_blob(f)
 
 
