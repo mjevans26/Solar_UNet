@@ -1,0 +1,17 @@
+{
+"workspace":
+    {
+    "workspace_name" :"solar", 
+    "subscription_id":"d54a5b4d-fd0c-4790-9898-ad1092502ab5", 
+    "resource_group":"cic_ai"
+    },
+"blobContainer":
+    {
+    "container_name" : "solar",
+    "account_name" : "aiprojects",
+	"datastore_name": "solardatablob",
+    "blob_url": "https://aiprojects.blob.core.windows.net/solar/CPK_solar/data/predict/Virginia/outputs/geotiff/{}_{}_{}.tif?sp=racwdl&st=2022-02-04T17:43:12Z&se=2022-02-05T01:43:12Z&sv=2020-08-04&sr=c&sig=e1WIPuD63XQ6c0tBtgpgWiEjgf2FyPTalufcaIaryuw%3D"
+    },
+"data":"CPK_solar/data/predict/{}/{}",
+"model": "solar_Jun21"
+}

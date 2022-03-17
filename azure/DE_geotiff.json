@@ -10,7 +10,7 @@
     "container_name" : "solar",
     "account_name" : "aiprojects",
 	"datastore_name": "solardatablob",
-    "blob_url": "https://aiprojects.blob.core.windows.net/solar/CPK_solar/data/predict/Delaware/outputs/tfrecord/{}_{}.TFRecord?sp=racw&st=2022-01-27T18:38:10Z&se=2022-01-29T02:38:10Z&sv=2020-08-04&sr=c&sig=vrHeB7LHAc2R2B6rhS%2BwRLqYM4xY5v1%2B9SlGyj8TTIY%3D"
+    "blob_url": "https://aiprojects.blob.core.windows.net/solar/CPK_solar/data/predict/Delaware/outputs/geotiff/{}_{}_{}.tif?sp=racwdl&st=2022-02-01T15:56:08Z&se=2022-02-01T23:56:08Z&sv=2020-08-04&sr=c&sig=NKdC7QTH0x291Yn9cTnV5l0q%2BMMVrr%2F1EskLVNPwYI8%3D"
     },
 "data":"CPK_solar/data/predict/{}/{}",
 "model": "solar_Jun21"

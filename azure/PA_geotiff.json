@@ -1,0 +1,17 @@
+{
+"workspace":
+    {
+    "workspace_name" :"solar", 
+    "subscription_id":"d54a5b4d-fd0c-4790-9898-ad1092502ab5", 
+    "resource_group":"cic_ai"
+    },
+"blobContainer":
+    {
+    "container_name" : "solar",
+    "account_name" : "aiprojects",
+	"datastore_name": "solardatablob",
+    "blob_url": "https://aiprojects.blob.core.windows.net/solar/CPK_solar/data/predict/Pennsylvania/outputs/geotiff/{}_{}_{}.tif?sp=racwdl&st=2022-02-02T20:12:00Z&se=2022-02-03T04:12:00Z&sv=2020-08-04&sr=c&sig=A4H2NpKBa58Rc5vqGm%2F0l6sZpPxgQom7jf%2FDmBxVbEQ%3D"
+    },
+"data":"CPK_solar/data/predict/{}/{}",
+"model": "solar_Jun21"
+}
