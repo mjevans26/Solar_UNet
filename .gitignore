@@ -16,7 +16,7 @@ data/
 *.amlignore
 *.amltmp
 *azureml-models/
-*outputs/
+azure/outputs/
 .ipynb_aml_checkpoints/
 
 # Distribution / packaging
