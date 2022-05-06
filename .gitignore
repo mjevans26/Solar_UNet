@@ -16,6 +16,7 @@ data/
 *.amlignore
 *.amltmp
 azureml-models/
+.ipynb_aml_checkpoints/
 
 # Distribution / packaging
 .Python
