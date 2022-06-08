@@ -34,6 +34,7 @@ parser.add_argument('--size', type = int, default = 3000, help = 'Size of traini
 parser.add_argument('--kernel_size', type = int, default = 256, dest = 'kernel_size', help = 'Size in pixels of incoming patches')
 parser.add_argument('--response', type = str, required = True, help = 'Name of the response variable in tfrecords')
 parser.add_argument('--bands', type = str, nargs = '+', required = False, default = '["B2", "B3", "B4", "B8", "B11", "B12"]')
+parser.add_argument('--splits', type = str, required = FALSE, default = '[0]')
 
 args = parser.parse_args()
 
@@ -44,6 +45,9 @@ BIAS = args.bias
 WEIGHT = args.weight
 LR = args.learning_rate
 BANDS = json.loads(args.bands)
+SPLITS = json.loads(args.splits)
+if sum(SPLITS) == 0:
+    SPLITS = None
 RESPONSE = args.response
 OPTIMIZER = tf.keras.optimizers.Adam(learning_rate=LR, beta_1=0.9, beta_2=0.999)
 
