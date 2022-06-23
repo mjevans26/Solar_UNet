@@ -5,8 +5,8 @@ Created on Sat Jan  2 12:41:40 2021
 @author: MEvans
 """
 
-from Satellite_ComputerVision import model_tools, processing
-from Satellite_ComputerVision.prediction_tools import makePredDataset, callback_predictions, plot_to_image
+from scv.utils import model_tools, processing
+from scv.utils.prediction_tools import make_pred_dataset, callback_predictions, plot_to_image
 from matplotlib import pyplot as plt
 import argparse
 import os
@@ -33,11 +33,11 @@ parser.add_argument('-b', '--batch', type = int, default = 16, help = 'Training 
 parser.add_argument('--size', type = int, default = 3000, help = 'Size of training dataset')
 parser.add_argument('--kernel_size', type = int, default = 256, dest = 'kernel_size', help = 'Size in pixels of incoming patches')
 parser.add_argument('--response', type = str, required = True, help = 'Name of the response variable in tfrecords')
-parser.add_argument('--bands', type = str, nargs = '+', required = False, default = '["B2", "B3", "B4", "B8", "B11", "B12"]')
-parser.add_argument('--splits', type = str, required = FALSE, default = '[0]')
+parser.add_argument('--bands', type = str, required = False, default = '["B2", "B3", "B4", "B8", "B11", "B12"]')
+parser.add_argument('--splits', type = str, required = False, default = '[0]')
 
 args = parser.parse_args()
-
+print('bands', args.bands)
 TRAIN_SIZE = args.size
 BATCH = args.batch
 EPOCHS = args.epochs
@@ -100,13 +100,16 @@ training = processing.get_training_dataset(
         response = RESPONSE,
         buff = BUFFER,
         batch = BATCH,
-        repeat = True)
+        axes = [2],
+        repeat = True,
+        splits = SPLITS)
 
 evaluation = processing.get_eval_dataset(
         files = eval_files,
         ftDict = FEATURES_DICT,
         features = BANDS,
-        response = RESPONSE)
+        response = RESPONSE,
+        splits = SPLITS)
 
 ## DEFINE CALLBACKS
 
@@ -121,7 +124,7 @@ date
 # define a checkpoint callback to save best models during training
 checkpoint = tf.keras.callbacks.ModelCheckpoint(
     os.path.join(out_dir, 'best_weights_'+date+'_{epoch:02d}.hdf5'),
-    monitor='val_classes_mean_iou',
+    monitor='val_classes_classes_mean_iou',
     verbose=1,
     save_best_only=True,
     mode='max'
@@ -146,7 +149,14 @@ if args.model_id:
     # load our previously trained model and weights
     model_file = glob.glob(os.path.join(model_dir, '*.h5'))[0]
     weights_file = glob.glob(os.path.join(model_dir, '*.hdf5'))[0]
-    m, checkpoint = model_tools.retrain_model(model_file, checkpoint, evaluation, 'classes_mean_iou', weights_file, weight = WEIGHT, lr = LR)
+    m, checkpoint = model_tools.retrain_model(
+        model_file = model_file,
+        checkpoint = checkpoint,
+        eval_data = evaluation,
+        metric = 'classes_classes_mean_iou',
+        weights_file = weights_file,
+        custom_objects = {'get_weighted_bce': get_weighted_bce},
+        lr = LR)
     # TODO: make this dynamic
     initial_epoch = 100
 # otherwise build a model from scratch with provided specs
@@ -165,7 +175,7 @@ if args.test_data:
     with open(jsonFile,) as file:
         mixer = json.load(file)
         
-    pred_data = makePredDataset(test_files, BANDS)
+    pred_data = make_pred_dataset(test_files, BANDS)
     file_writer = tf.summary.create_file_writer(log_dir + '/preds')
 
     def log_pred_image(epoch, logs):
