@@ -17,7 +17,7 @@ import tensorflow as tf
 from datetime import datetime
 from azureml.core import Run, Workspace, Model
 
-
+print(tf.__version__)
 # Set Global variables
 
 parser = argparse.ArgumentParser()
@@ -26,7 +26,7 @@ parser.add_argument('--eval_data', type = str, required = True, help = 'Evaluati
 parser.add_argument('--test_data', type = str, default = None, help = 'directory containing test image(s) and mixer')
 parser.add_argument('--model_id', type = str, required = False, default = None, help = 'model id for continued training')
 parser.add_argument('-lr', '--learning_rate', type = float, default = 0.001, help = 'Initial learning rate')
-parser.add_argument('-w', '--weight', type = float, default = 1.0, help = 'Positive sample weight for iou, bce, etc.')
+parser.add_argument('-w', '--weights', type = str, default = None, help = 'sample weight for classes in iou, bce, etc.')
 parser.add_argument('--bias', type = float, default = None, help = 'bias value for keras output layer initializer')
 parser.add_argument('-e', '--epochs', type = int, default = 10, help = 'Number of epochs to train the model for')
 parser.add_argument('-b', '--batch', type = int, default = 16, help = 'Training batch size')
@@ -35,28 +35,46 @@ parser.add_argument('--kernel_size', type = int, default = 256, dest = 'kernel_s
 parser.add_argument('--response', type = str, required = True, help = 'Name of the response variable in tfrecords')
 parser.add_argument('--bands', type = str, required = False, default = '["B2", "B3", "B4", "B8", "B11", "B12"]')
 parser.add_argument('--splits', type = str, required = False, default = '[0]')
+parser.add_argument('--epoch_start', type = int, required = False, help = 'If re-training, the last epoch')
 
 args = parser.parse_args()
 print('bands', args.bands)
 TRAIN_SIZE = args.size
 BATCH = args.batch
 EPOCHS = args.epochs
+LAST = args.epoch_start
 BIAS = args.bias
-WEIGHT = args.weight
+WEIGHTS = json.loads(args.weights)
 LR = args.learning_rate
 BANDS = json.loads(args.bands)
+DEPTH = len(BANDS)
 SPLITS = json.loads(args.splits)
 if sum(SPLITS) == 0:
     SPLITS = None
-RESPONSE = args.response
+RESPONSE = dict({args.response:2})
+MOMENTS = [(0,10000),(0,10000),(0,10000),(0,10000),(0,10000),(0,10000) ]
 OPTIMIZER = tf.keras.optimizers.Adam(learning_rate=LR, beta_1=0.9, beta_2=0.999)
 
 METRICS = {
-        'logits':[tf.keras.metrics.MeanSquaredError(name='mse'), tf.keras.metrics.Precision(name='precision'), tf.keras.metrics.Recall(name='recall')],
-        'classes':[tf.keras.metrics.MeanIoU(num_classes=2, name = 'mean_iou')]
+        'logits':[tf.keras.metrics.CategoricalAccuracy()],
+        'classes':[tf.keras.metrics.MeanIoU(num_classes = 2, sparse_y_pred = True, sparse_y_true = False)]
         }
 
-FEATURES = BANDS + [RESPONSE]
+def weighted_crossentropy(y_true, y_pred):
+    class_weights = tf.compat.v2.constant(WEIGHTS)
+    weights = tf.reduce_sum(class_weights * y_true, axis = -1)
+    print('weights shape', weights.shape)
+    unweighted_loss = tf.keras.losses.categorical_crossentropy(y_true, y_pred)
+    weighted_loss = weights * unweighted_loss
+    loss = tf.reduce_mean(weighted_loss)
+    return loss
+
+
+LOSSES = {
+    'logits':weighted_crossentropy
+    }
+
+FEATURES = BANDS + [args.response]
 
 # round the training data size up to nearest 100 to define buffer
 BUFFER = math.ceil(args.size/100)*100
@@ -98,6 +116,7 @@ training = processing.get_training_dataset(
         ftDict = FEATURES_DICT,
         features = BANDS,
         response = RESPONSE,
+        moments = MOMENTS,
         buff = BUFFER,
         batch = BATCH,
         axes = [2],
@@ -109,12 +128,10 @@ evaluation = processing.get_eval_dataset(
         ftDict = FEATURES_DICT,
         features = BANDS,
         response = RESPONSE,
+        moments = MOMENTS,
         splits = SPLITS)
 
 ## DEFINE CALLBACKS
-
-def get_weighted_bce(y_true, y_pred):
-    return model_tools.weighted_bce(y_true, y_pred, WEIGHT)
 
 # get the current time
 now = datetime.now() 
@@ -124,7 +141,7 @@ date
 # define a checkpoint callback to save best models during training
 checkpoint = tf.keras.callbacks.ModelCheckpoint(
     os.path.join(out_dir, 'best_weights_'+date+'_{epoch:02d}.hdf5'),
-    monitor='val_classes_classes_mean_iou',
+    monitor='val_classes_mean_io_u',
     verbose=1,
     save_best_only=True,
     mode='max'
@@ -153,15 +170,15 @@ if args.model_id:
         model_file = model_file,
         checkpoint = checkpoint,
         eval_data = evaluation,
-        metric = 'classes_classes_mean_iou',
+        metric = 'classes_mean_io_u',
         weights_file = weights_file,
-        custom_objects = {'get_weighted_bce': get_weighted_bce},
+        custom_objects = {'weighted_crossentropy': weighted_crossentropy},
         lr = LR)
     # TODO: make this dynamic
-    initial_epoch = 100
+    initial_epoch = LAST
 # otherwise build a model from scratch with provided specs
 else:
-    m = model_tools.get_binary_model(depth = len(BANDS), optim = OPTIMIZER, loss = get_weighted_bce, mets = METRICS, bias = BIAS)
+    m = model_tools.get_unet_model(nclasses = 2, nchannels = DEPTH, optim = OPTIMIZER, loss = LOSSES, mets = METRICS, bias = BIAS)
     initial_epoch = 0
 
 # if test images provided, define an image saving callback
@@ -175,12 +192,12 @@ if args.test_data:
     with open(jsonFile,) as file:
         mixer = json.load(file)
         
-    pred_data = make_pred_dataset(test_files, BANDS)
+    pred_data = make_pred_dataset(test_files, BANDS, moments = MOMENTS)
     file_writer = tf.summary.create_file_writer(log_dir + '/preds')
 
     def log_pred_image(epoch, logs):
       out_image = callback_predictions(pred_data, m, mixer)
-      prob = out_image[:, :, 0]
+      prob = out_image[:, :]
       figure = plt.figure(figsize=(10, 10))
       plt.imshow(prob)
       image = plot_to_image(figure)
@@ -195,13 +212,14 @@ else:
     callbacks = [checkpoint, tensorboard]
     
 # train the model
+steps_per_epoch = int(TRAIN_SIZE//BATCH)
 m.fit(
         x = training,
         epochs = EPOCHS,
-        steps_per_epoch = int(TRAIN_SIZE//BATCH),
+        steps_per_epoch = steps_per_epoch,
         validation_data = evaluation,
-        callbacks = callbacks#,
-        #initial_epoch = initial_epoch
+        callbacks = callbacks,
+        initial_epoch = initial_epoch
         )
 
-m.save(os.path.join(out_dir, f'unet256_{date}.h5'))
+m.save(os.path.join(out_dir, f'solar_unet256_{date}.h5'))

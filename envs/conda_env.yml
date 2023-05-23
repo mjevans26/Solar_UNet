@@ -1,4 +1,4 @@
-name: solar-training
+name: solar_training
 channels:
 - anaconda
 - conda-forge
@@ -14,7 +14,7 @@ dependencies:
   - numpy>=1.10,<1.20
   - rasterio==1.2.10
   - ipykernel~=6.0
-  - azureml-core==1.37.0.post1
+  - azureml-core==1.37.0
   - azure-storage-blob==12.9.0
   - azureml-defaults==1.37.0
   - azureml-mlflow==1.37.0

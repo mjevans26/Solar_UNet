@@ -1,0 +1,28 @@
+name: tf_training
+channels:
+- anaconda
+- conda-forge
+dependencies:
+- python=3.8 
+- pip=20.2.4
+- pip:
+  - matplotlib~=3.5.0
+  - psutil~=5.8.0
+  - tqdm~=4.62.0
+  - pandas>=1.1,<1.2
+  - scipy~=1.7.0
+  - numpy~=1.21.0
+  - rasterio==1.2.10
+  - ipykernel~=6.0
+  - azureml-core==1.47.0
+  - azure-storage-blob==12.9.0
+  - azureml-defaults==1.47.0
+  - azureml-mlflow==1.47.0
+  - azureml-telemetry==1.47.0
+  - tensorboard~=2.11.0
+  - tensorflow-gpu~=2.11.0
+  - tensorflow-datasets~=4.5.0
+  - onnxruntime-gpu~=1.9.0
+  - 'horovod[tensorflow-gpu]~=0.23.0'
+  - debugpy~=1.6.3
+  - protobuf~=3.20
